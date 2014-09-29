@@ -1,0 +1,6 @@
+[submodule "peparser"]
+	path = peparser
+	url = https://github.com/sgraf812/peparser-haskell.git
+[submodule "hdis86"]
+	path = hdis86
+	url = https://github.com/sgraf812/hdis86.git
