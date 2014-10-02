@@ -1,7 +1,11 @@
 module Main where
 
 import Paths_fndiff
+import Utils
+import Image
 import Data.Maybe
+import Numeric (showHex)
+import Data.List (foldl')
 import qualified Data.Map as M
 import qualified Data.ByteString.Lazy as B
 import qualified Data.PE.Parser as PE
@@ -17,11 +21,16 @@ x86Exes =
     let paths = fmap (exePath False) builds
         files = fmap (>>= B.readFile) paths
     in M.fromList (zip builds files)
+
+hex = foldl' (flip showHex) "" . B.unpack
            
 main :: IO ()
 main = do
-    bits <- fromJust . M.lookup (head builds) $ x86Exes
-    
-    putStrLn . show . PE.buildFileFromBS $ bits
+    bits <- exePath False (head builds) >>= B.readFile
+    let image = PEImage (PE.buildFileFromBS bits)
+    print (sections image)
+    let ofs = image |> entryPoint |> rvaToFileOffset image |> fromJust |> fromIntegral
+    print ofs
+    print . hex . B.take 20 . B.drop ofs $ bits
        
        
