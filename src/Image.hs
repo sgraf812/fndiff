@@ -3,14 +3,21 @@ module Image where
 import Utils
 import Data.Maybe
 import Data.Word
+import Numeric (showHex)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.PE.Structures as PE
 
 newtype RelativeAddress = RelativeAddress Word32 
-                          deriving (Show, Eq, Ord)
+                          deriving (Eq, Ord)
 
 newtype AbsoluteAddress = AbsoluteAddress Word64
-                          deriving (Show, Eq, Ord)
+                          deriving (Eq, Ord)
+
+instance Show RelativeAddress where
+    show (RelativeAddress addr) = "+0x" ++ showHex addr ""
+
+instance Show AbsoluteAddress where
+    show (AbsoluteAddress addr) = "@0x" ++ showHex addr ""
 
 data Section = Section
     { name :: String
@@ -44,6 +51,9 @@ rvaToFileOffset img addr = img
 
 data PEImage = PEImage { file :: PE.PEFile } deriving (Show)
 
+pe :: PEImage -> PE.PEHeader
+pe img = img |> file |> PE.peHeader
+
 toSection :: (PE.SectionTable, B.ByteString) -> Section
 toSection (st, _) = Section
     { name = PE.sectionHeaderName st
@@ -55,13 +65,11 @@ toSection (st, _) = Section
 
 instance Image PEImage where
     sections img = img
-                 |> file
-                 |> PE.peHeader
+                 |> pe
                  |> PE.sectionTables
                  |> map toSection
     entryPoint img = img
-                   |> file
-                   |> PE.peHeader
+                   |> pe
                    |> PE.standardFields
                    |> PE.addressOfEntryPoint
                    |> RelativeAddress
