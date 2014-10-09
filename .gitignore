@@ -1,4 +1,5 @@
 .cabal-sandbox/
+cabal.sandbox.config
 dist/
 **/.idea/workspace.xml
 **/.idea/tasks.xml

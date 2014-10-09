@@ -2,6 +2,7 @@ module Main where
 
 import Paths_fndiff
 import Image
+import Signature
 import Control.FSharp.Syntax.Operators
 import Data.Maybe (fromJust)
 import Numeric (showHex)
