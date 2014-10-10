@@ -50,10 +50,22 @@ instance Serialize (HList '[]) where
 
 instance (Serialize e, Serialize (HList l)) => Serialize (HList (e ': l)) where
     get = liftM2 HCons get get
-    put (x `HCons` xs) = do _ <- put x; _ <- put xs; return ()
+    put (x `HCons` xs) = do 
+        _ <- put x
+        _ <- put xs
+        return ()
+
+class InitLoc a where
+    initFromLoc :: Location -> a
+
+instance InitLoc (HList '[]) where
+    initFromLoc _ = HNil
+
+instance (Characteristic e, InitLoc (HList l)) => InitLoc (HList (e ': l)) where
+    initFromLoc l = characterize l `HCons` initFromLoc l
 
 fingerprint :: HList '[Hash, Counter]
-fingerprint = hBuild (characterize loc) (characterize loc) |> hEnd
+fingerprint = initFromLoc loc
 
 bytes :: BS.ByteString
 bytes = fingerprint |> put |> runPut
@@ -63,10 +75,9 @@ fingerprint2 = case runGet get bytes of
                    Right fp -> fp
                    Left e -> error e
 
-data Scoreable = HScore Location
-
-instance Characteristic c => ApplyAB Scoreable c Float where
-    applyAB (HScore l) = score l
+data ScoreIfy = HMapScore Location
+instance Characteristic c => ApplyAB ScoreIfy c Float where
+    applyAB (HMapScore l) = score l
 
 totalScore :: Float
-totalScore = hMapOut (HScore loc) fingerprint2 |> sum
+totalScore = hMapOut (HMapScore loc) fingerprint2 |> sum
