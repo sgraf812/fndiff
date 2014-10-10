@@ -44,16 +44,6 @@ instance Characteristic Counter where
 loc :: Location
 loc = undefined
 
-data Puttable = HPut
-data Gettable = HGet
-
-instance Serialize c => ApplyAB Puttable c Put where
-    applyAB _ = put
-
-instance Serialize c => Apply Puttable c where
-    type ApplyR Puttable c = Put
-    apply _ = put
-
 instance Serialize (HList '[]) where
     get = return HNil
     put HNil = return ()
