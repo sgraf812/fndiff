@@ -1,17 +1,19 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Signature where
 
 import Image
 import Control.FSharp.Syntax.Operators
+import Control.Monad
 import Data.Serialize
 import Data.ByteString as BS
 import Data.HList (HList(..), Apply(..), ApplyAB(..), hEnd, hBuild, hMapOut)
-import Data.Tuple.HList
 
 type Location = (Disassembly, RelativeAddress)
 data Disassembly = forall img . Image img => DA img
@@ -52,15 +54,23 @@ instance Serialize c => Apply Puttable c where
     type ApplyR Puttable c = Put
     apply _ = put
 
+instance Serialize (HList '[]) where
+    get = return HNil
+    put HNil = return ()
+
+instance (Serialize e, Serialize (HList l)) => Serialize (HList (e ': l)) where
+    get = liftM2 HCons get get
+    put (x `HCons` xs) = do _ <- put x; _ <- put xs; return ()
+
 fingerprint :: HList '[Hash, Counter]
 fingerprint = hBuild (characterize loc) (characterize loc) |> hEnd
 
 bytes :: BS.ByteString
-bytes = (fingerprint |> hMapOut HPut :: [Put]) |> sequence_ |> runPut
+bytes = fingerprint |> put |> runPut
 
 fingerprint2 :: HList '[Hash, Counter]
 fingerprint2 = case runGet get bytes of
-                   Right fp -> toHList fp
+                   Right fp -> fp
                    Left e -> error e
 
 data Scoreable = HScore Location
