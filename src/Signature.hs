@@ -13,10 +13,10 @@ import Control.FSharp.Syntax.Operators
 import Control.Monad
 import Data.Serialize
 import Data.ByteString as BS
-import Data.HList (HList(..), Apply(..), ApplyAB(..), hEnd, hBuild, hMapOut)
+import Data.HList (HList(..), ApplyAB(..), hMapOut)
 
 type Location = (Disassembly, RelativeAddress)
-data Disassembly = forall img . Image img => DA img
+data Disassembly = DA Image
 
 class Serialize c => Characteristic c where
     characterize :: Location -> c
@@ -67,11 +67,11 @@ instance (Characteristic e, InitLoc (HList l)) => InitLoc (HList (e ': l)) where
 fingerprint :: HList '[Hash, Counter]
 fingerprint = initFromLoc loc
 
-bytes :: BS.ByteString
-bytes = fingerprint |> put |> runPut
+serialize :: BS.ByteString
+serialize = fingerprint |> put |> runPut
 
 fingerprint2 :: HList '[Hash, Counter]
-fingerprint2 = case runGet get bytes of
+fingerprint2 = case runGet get serialize of
                    Right fp -> fp
                    Left e -> error e
 
