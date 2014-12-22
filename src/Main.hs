@@ -36,8 +36,9 @@ config = Config Intel Mode32 SyntaxIntel 0x400000
 main :: IO ()
 main = do
     bits <- exePath False (head builds) >>= B.readFile
-    let image = PEImage (PE.buildFileFromBS bits)
-    let pep = image |> pe |> PE.sectionTables
+    let file = PE.buildFileFromBS bits
+    let image = peImage file
+    let pep = file |> PE.peHeader |> PE.sectionTables
     print pep
     mapM_ print (sections image)
     print (entryPoint image)

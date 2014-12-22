@@ -36,20 +36,25 @@ data Section = Section
     , bytes :: BS.ByteString
     } deriving (Show, Eq)
 
-offsetOf :: RelativeAddress -> RelativeAddress -> Int
-offsetOf (RelativeAddress a) (RelativeAddress b) = fromInteger (toInteger a - toInteger b)
+offsetFrom :: RelativeAddress -> RelativeAddress -> Int
+offsetFrom (RelativeAddress a) (RelativeAddress b) = fromIntegral a - fromIntegral b
 
 advance :: Int -> RelativeAddress -> RelativeAddress
-advance ofs (RelativeAddress a) = a |> fromIntegral |> (+ ofs) |> fromIntegral |> RelativeAddress
+advance ofs (RelativeAddress a) = RelativeAddress (a + fromIntegral ofs)
+
+baseAt :: AbsoluteAddress -> RelativeAddress -> AbsoluteAddress
+baseAt (AbsoluteAddress addr) (RelativeAddress ofs) = AbsoluteAddress (addr + fromIntegral ofs)
 
 data Image = Image 
     { sections :: [Section]
     , entryPoint :: RelativeAddress
+    , baseAddress :: AbsoluteAddress
+    , is64Bit :: Bool -- TODO: Maybe an enum
     } deriving Show
 
 offsetInSection :: RelativeAddress -> Section -> Maybe (Section, Int)
 offsetInSection addr sec = 
-    let ofs = addr `offsetOf` virtualAddress sec
+    let ofs = addr `offsetFrom` virtualAddress sec
     in if ofs >= 0 && ofs < virtualSize sec
        then Just (sec, ofs)
        else Nothing
@@ -75,7 +80,7 @@ rvaToTextOffset :: Image -> RelativeAddress -> Maybe Int
 rvaToTextOffset img addr = do
     let ep = entryPoint img
     (text, _) <- containingSection img ep
-    let textOfs = addr `offsetOf` virtualAddress text
+    let textOfs = addr `offsetFrom` virtualAddress text
     return textOfs
 
 toSection :: (PE.SectionTable, BL.ByteString) -> Section
@@ -89,13 +94,16 @@ toSection (st, bs) = Section
     }
 
 peImage :: PE.PEFile -> Image
-peImage file = Image
-    { sections = file |> PE.peHeader |> PE.sectionTables |> map toSection
-    , entryPoint = 
-        file |> PE.peHeader
-             |> PE.standardFields
-             |> PE.addressOfEntryPoint
-             |> RelativeAddress
+peImage file = 
+    let pe = file |> PE.peHeader 
+    in Image
+    { sections = pe |> PE.sectionTables |> map toSection
+    , entryPoint = pe |> PE.standardFields |> PE.addressOfEntryPoint |> RelativeAddress
+    , baseAddress = pe |> PE.standardFields |> PE.baseOfCode |> fromIntegral |> AbsoluteAddress
+    , is64Bit = case pe |> PE.coffHeader |> PE.targetMachine of
+                    PE.AMD64 -> True
+                    PE.I386 -> False
+                    _ -> error "Only AMD64 and I386 are supported."
     }
         
 
